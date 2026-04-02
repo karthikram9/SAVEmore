@@ -2,14 +2,14 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import NavBar from '../components/NavBar';
 import TransactionModal from '../components/TransactionModal';
 import { AuthContext } from '../context/AuthContext';
-import axios from '../api/axios.js';
+import { getTransactions, deleteTransaction } from '../firebase/transactions';
 import { Plus, Edit2, Trash2, Filter } from 'lucide-react';
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Salary', 'Freelance', 'Other'];
 const ITEMS_PER_PAGE = 20;
 
 const Transactions = () => {
-  const { token } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [transactions, setTransactions] = useState([]);
   
   // Filters
@@ -26,16 +26,15 @@ const Transactions = () => {
   const [currentTx, setCurrentTx] = useState(null);
 
   useEffect(() => {
-    if (token) fetchTransactions();
+    if (user) fetchTransactions();
     // eslint-disable-next-line
-  }, [token]);
+  }, [user]);
 
   const fetchTransactions = async () => {
+    if (!user?.uid) return;
     try {
-      const res = await axios.get('/api/transactions');
-      if (res.data.success) {
-        setTransactions(res.data.data);
-      }
+      const data = await getTransactions(user.uid);
+      setTransactions(data);
     } catch (err) {
       console.error('Error fetching transactions:', err);
     }
@@ -44,7 +43,7 @@ const Transactions = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
       try {
-        await axios.delete(`/api/transactions/${id}`);
+        await deleteTransaction(id);
         fetchTransactions(); // Refresh data completely
       } catch (err) {
         console.error('Delete failed:', err);

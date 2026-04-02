@@ -3,7 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import NavBar from '../components/NavBar';
 import TransactionModal from '../components/TransactionModal';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axios.js';
+import { getSummary, getTransactions } from '../firebase/transactions';
 import {
   PieChart,
   Pie,
@@ -35,7 +35,7 @@ const categoryIcons = {
 };
 
 const Dashboard = () => {
-  const { token, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState({ totalIncome: 0, totalExpense: 0, balance: 0 });
@@ -43,48 +43,38 @@ const Dashboard = () => {
   const [barData, setBarData] = useState([]);
   const [transactions, setTransactions] = useState([]);
 
-  // Modal State handling via the extracted generic component
+  // Modal State handling
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    if (token) {
+    if (user?.uid) {
       fetchDashboardData();
     }
-  }, [token]);
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
       // 1. Fetch Summary
-      const summaryRes = await axios.get('/api/transactions/summary');
-      if (summaryRes.data.success) {
-        setSummary({
-          totalIncome: summaryRes.data.data.totalIncome,
-          totalExpense: summaryRes.data.data.totalExpense,
-          balance: summaryRes.data.data.balance,
-        });
-      }
+      const summaryData = await getSummary(user.uid);
+      setSummary({
+        totalIncome: summaryData.totalIncome,
+        totalExpense: summaryData.totalExpense,
+        balance: summaryData.balance,
+      });
+
+      const pieMap = summaryData.categoryBreakdown || {};
+      setPieData(
+        Object.keys(pieMap).map((k) => ({
+          name: k,
+          value: pieMap[k],
+        }))
+      );
 
       // 2. Fetch All Transactions for Pie and List
-      const txRes = await axios.get('/api/transactions');
-      if (txRes.data.success) {
-        const allTxs = txRes.data.data;
-        setTransactions(allTxs.slice(0, 10));
+      const allTxs = await getTransactions(user.uid);
+      setTransactions(allTxs.slice(0, 10));
 
-        // Calculate Expenses for Pie Chart
-        const expenses = allTxs.filter((t) => t.type === 'expense');
-        const pieMap = {};
-        expenses.forEach((e) => {
-          pieMap[e.category] = (pieMap[e.category] || 0) + e.amount;
-        });
-        setPieData(
-          Object.keys(pieMap).map((k) => ({
-            name: k,
-            value: pieMap[k],
-          }))
-        );
-      }
-
-      // 3. Fetch Last 6 Months for Bar Chart
+      // 3. Compute Last 6 Months for Bar Chart
       const dates = [];
       const d = new Date();
       for (let i = 5; i >= 0; i--) {
@@ -94,18 +84,18 @@ const Dashboard = () => {
         dates.push({ query: monthString, label: monthLabel });
       }
 
-      const monthPromises = dates.map((m) => axios.get(`/api/transactions?month=${m.query}`));
-      const monthResponses = await Promise.all(monthPromises);
-
-      const computedBarData = monthResponses.map((res, index) => {
-        const txs = res.data.data || [];
+      const computedBarData = dates.map((m) => {
         let inc = 0, exp = 0;
-        txs.forEach((t) => {
-          if (t.type === 'income') inc += t.amount;
-          if (t.type === 'expense') exp += t.amount;
+        allTxs.forEach((t) => {
+          const tDate = new Date(t.date);
+          const tMonthStr = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`;
+          if (tMonthStr === m.query) {
+            if (t.type === 'income') inc += t.amount;
+            if (t.type === 'expense') exp += t.amount;
+          }
         });
         return {
-          name: dates[index].label,
+          name: m.label,
           Income: inc,
           Expense: exp,
         };
@@ -114,10 +104,6 @@ const Dashboard = () => {
       setBarData(computedBarData);
     } catch (error) {
       console.error('Error fetching dashboard data', error);
-      if (error.response?.status === 401) {
-        logout();
-        navigate('/login');
-      }
     }
   };
 
@@ -182,9 +168,9 @@ const Dashboard = () => {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center text-gray-400">
-                  No expense records found.
-                </div>
+               <div className="flex h-full items-center justify-center text-gray-400">
+                 No expense records found.
+               </div>
               )}
             </div>
           </div>

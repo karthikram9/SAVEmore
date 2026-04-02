@@ -1,6 +1,5 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from '../api/axios.js';
 import { AuthContext } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -15,7 +14,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
-  const { login } = useContext(AuthContext);
+  const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const validate = () => {
@@ -41,30 +40,16 @@ const Register = () => {
     e.preventDefault();
     setError(null);
     
-    // Front-end validation rules
     if (!validate()) return;
     
     setLoading(true);
 
     try {
-      const payload = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password
-      };
-
-      const response = await axios.post('/api/auth/register', payload);
-      const { token, user } = response.data;
-
-      login(user, token);
-      
+      await register(formData.name, formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
-      if (err.response?.data?.errors) {
-        setError(err.response.data.errors[0].msg);
-      } else {
-        setError(err.response?.data?.message || 'Registration failed. Please try again.');
-      }
+      // Firebase throws nicely readable errors which we can display
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -133,7 +118,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className="block text-sm font- medium text-gray-700">Confirm Password</label>
+              <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
               <input
                 name="confirmPassword"
                 type="password"

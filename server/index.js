@@ -1,14 +1,12 @@
+import 'dotenv/config'; // Executed first to inject process.env vars
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 import authRoutes from './routes/auth.js';
 import transactionRoutes from './routes/transactions.js';
-
-dotenv.config();
 
 const app = express();
 
@@ -44,7 +42,11 @@ if (!MONGO_URI) {
 }
 
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    ssl: true,
+    tls: true
+  })
   .then(() => {
     console.log('✅ Connected to MongoDB');
     app.listen(PORT, () => {

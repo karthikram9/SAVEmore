@@ -1,6 +1,5 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from '../api/axios.js';
 import { AuthContext } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -21,19 +20,10 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/login', formData);
-      const { token, user } = response.data;
-
-      // Persist auth context
-      login(user, token);
-      
+      await login(formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
-      if (err.response?.data?.errors) {
-        setError(err.response.data.errors[0].msg);
-      } else {
-        setError(err.response?.data?.message || 'Login failed. Please try again.');
-      }
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

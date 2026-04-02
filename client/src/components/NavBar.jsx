@@ -48,7 +48,7 @@ const NavBar = () => {
             </div>
           </div>
           <div className="flex items-center">
-            <span className="mr-4 hidden text-sm text-gray-600 sm:block">Hello, {user?.name || 'User'}</span>
+            <span className="mr-4 hidden text-sm text-gray-600 sm:block">Hello, {user?.displayName || 'User'}</span>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 rounded text-sm font-medium text-gray-500 transition hover:text-gray-700 focus:outline-none"

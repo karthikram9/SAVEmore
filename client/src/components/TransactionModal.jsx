@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import axios from '../api/axios.js';
+import React, { useState, useEffect, useContext } from 'react';
 import { X } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { addTransaction, updateTransaction } from '../firebase/transactions';
 
-// Using the exact requested categories
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Health', 'Salary', 'Freelance', 'Other'];
 
 const TransactionModal = ({ isOpen, onClose, onSuccess, transaction = null }) => {
+  const { user } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     type: 'expense',
     amount: '',
@@ -37,6 +38,8 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, transaction = null }) =>
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user?.uid) return;
+
     setLoading(true);
     try {
       const payload = {
@@ -46,16 +49,16 @@ const TransactionModal = ({ isOpen, onClose, onSuccess, transaction = null }) =>
       };
 
       if (transaction && transaction._id) {
-        await axios.put(`/api/transactions/${transaction._id}`, payload);
+        await updateTransaction(transaction._id, payload);
       } else {
-        await axios.post('/api/transactions', payload);
+        await addTransaction(user.uid, payload);
       }
       
       onSuccess();
       onClose();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to save transaction.');
+      alert(err.message || 'Failed to save transaction.');
     } finally {
       setLoading(false);
     }
